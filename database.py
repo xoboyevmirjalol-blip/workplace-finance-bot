@@ -72,6 +72,12 @@ async def get_recent_transactions(user_id: int, limit: int = 10) -> List[Dict[st
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
+async def delete_transaction_by_id(user_id: int, trans_id: int) -> bool:
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute("DELETE FROM transactions WHERE id = ? AND user_id = ?", (trans_id, user_id))
+        await db.commit()
+        return cursor.rowcount > 0
+
 async def delete_last_transaction(user_id: int) -> Optional[Dict[str, Any]]:
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row

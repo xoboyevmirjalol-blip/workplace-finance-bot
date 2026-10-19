@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Ishxona Hisob-Kitob</title>
+  <!-- Telegram WebApp JS SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="user-info">
+        <div class="avatar" id="userAvatar">U</div>
+        <div class="user-meta">
+          <h2 id="userName">Foydalanuvchi</h2>
+          <span class="badge" id="currentDateBadge">Bugun</span>
+        </div>
+      </div>
+      <button class="icon-btn" id="refreshBtn" title="Yangilash">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+      </button>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="tab-today">📊 Bugun</button>
+      <button class="tab-btn" data-tab="tab-monthly">📈 Oylik tahlil</button>
+      <button class="tab-btn" data-tab="tab-export">📥 Excel</button>
+    </div>
+
+    <!-- TAB 1: BUGUNGI HOLAT -->
+    <main class="tab-content active" id="tab-today">
+      <!-- Balance Hero Card -->
+      <section class="hero-card">
+        <div class="hero-label">Bugungi sof qoldiq</div>
+        <div class="hero-balance" id="todayNet">0 so'm</div>
+        <div class="hero-stats">
+          <div class="stat-pill income">
+            <span class="dot"></span>
+            <span class="stat-name">Daromad:</span>
+            <strong id="todayIncome">0 so'm</strong>
+          </div>
+          <div class="stat-pill expense">
+            <span class="dot"></span>
+            <span class="stat-name">Xarajat:</span>
+            <strong id="todayExpense">0 so'm</strong>
+          </div>
+          <div class="stat-pill advance">
+            <span class="dot"></span>
+            <span class="stat-name">Avans:</span>
+            <strong id="todayAdvance">0 so'm</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Action Buttons -->
+      <section class="actions-grid">
+        <button class="action-btn btn-income" onclick="openAddModal('income')">
+          <span class="icon">💰</span>
+          <span class="btn-text">Daromad</span>
+        </button>
+        <button class="action-btn btn-expense" onclick="openAddModal('expense')">
+          <span class="icon">💸</span>
+          <span class="btn-text">Xarajat</span>
+        </button>
+        <button class="action-btn btn-advance" onclick="openAddModal('advance')">
+          <span class="icon">🤝</span>
+          <span class="btn-text">Avans</span>
+        </button>
+      </section>
+
+      <!-- Today's Transactions List -->
+      <section class="transactions-section">
+        <div class="section-header">
+          <h3>Bugungi amallar</h3>
+          <span class="counter" id="todayTxCount">0 ta</span>
+        </div>
+        <div class="tx-list" id="todayTxList">
+          <div class="empty-state">Bugun hali hech qanday amal kiritilmadi.</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 2: OYLIK TAHLIL -->
+    <main class="tab-content" id="tab-monthly">
+      <div class="month-selector">
+        <button class="month-nav-btn" id="prevMonthBtn">◀</button>
+        <span class="selected-month" id="selectedMonthTitle">Oktyabr 2026</span>
+        <button class="month-nav-btn" id="nextMonthBtn">▶</button>
+      </div>
+
+      <!-- Monthly Summary Card -->
+      <section class="monthly-card">
+        <div class="monthly-row highlight">
+          <span>💼 Qoldiq ish haqi (Daromad - Avans):</span>
+          <strong id="monthNetSalary">0 so'm</strong>
+        </div>
+        <div class="divider"></div>
+        <div class="monthly-row">
+          <span>💰 Jami daromad:</span>
+          <strong class="text-income" id="monthTotalIncome">0 so'm</strong>
+        </div>
+        <div class="monthly-row">
+          <span>💸 Jami xarajatlar:</span>
+          <strong class="text-expense" id="monthTotalExpense">0 so'm</strong>
+        </div>
+        <div class="monthly-row">
+          <span>🤝 Olingan avanslar:</span>
+          <strong class="text-advance" id="monthTotalAdvance">0 so'm</strong>
+        </div>
+        <div class="monthly-row">
+          <span>💵 Sof foyda (Daromad - Xarajat):</span>
+          <strong id="monthNetProfit">0 so'm</strong>
+        </div>
+      </section>
+
+      <!-- Category Breakdown -->
+      <section class="categories-section">
+        <h3>Xarajatlar tahlili</h3>
+        <div class="categories-list" id="categoriesList">
+          <div class="empty-state">Ma'lumotlar mavjud emas.</div>
+        </div>
+      </section>
+
+      <!-- Daily Activity Breakdown -->
+      <section class="daily-section">
+        <h3>Kunlik ko'rsatkichlar</h3>
+        <div class="daily-list" id="dailyBreakdownList"></div>
+      </section>
+    </main>
+
+    <!-- TAB 3: EXCEL EKSPORT -->
+    <main class="tab-content" id="tab-export">
+      <div class="export-box">
+        <div class="excel-icon">📑</div>
+        <h3>Oylik Excel hisobotini yuklab olish</h3>
+        <p>Barcha daromad, xarajat, olingan avanslar va hisob-kitoblar rangli va to'liq formatlangan `.xlsx` jadvalida tayyorlanadi.</p>
+        
+        <div class="export-picker">
+          <label>Oyni tanlang:</label>
+          <select id="exportMonthSelect"></select>
+        </div>
+
+        <button class="primary-btn" id="downloadExcelBtn">
+          📥 Excel (.xlsx) faylini yuklash
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ADD TRANSACTION MODAL -->
+  <div class="modal-backdrop" id="addModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="modalTitle">Amal qo'shish</h3>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+
+      <form id="txForm" onsubmit="handleFormSubmit(event)">
+        <input type="hidden" id="txType" value="income">
+
+        <div class="form-group">
+          <label>Summa (so'mda):</label>
+          <div class="amount-input-wrap">
+            <input type="text" id="txAmount" placeholder="Masalan: 50 000 yoki 50k" required autofocus>
+          </div>
+          <div class="amount-quick-tags">
+            <button type="button" onclick="setQuickAmount(10000)">+10k</button>
+            <button type="button" onclick="setQuickAmount(50000)">+50k</button>
+            <button type="button" onclick="setQuickAmount(100000)">+100k</button>
+            <button type="button" onclick="setQuickAmount(500000)">+500k</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Toifa / Kategoriya:</label>
+          <div class="category-tags" id="categoryTags"></div>
+          <input type="text" id="customCategory" placeholder="Yoki o'zingiz toifa yozing..." class="sub-input">
+        </div>
+
+        <div class="form-group">
+          <label>Izoh / Tafsilot (ixtiyoriy):</label>
+          <input type="text" id="txDesc" placeholder="Masalan: Tushlik osh, yo'l kira...">
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Saqlash ✅
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
