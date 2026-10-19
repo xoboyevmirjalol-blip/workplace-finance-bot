@@ -61,12 +61,14 @@ async def delete_last_handler(message: Message):
         return
 
     type_name = "💰 Daromad" if deleted['type'] == 'income' else ("💸 Xarajat" if deleted['type'] == 'expense' else "🤝 Avans")
+    cat_name = deleted['category'] if deleted['category'] else "Ko'rsatilmagan"
+    desc_text = deleted['description'] if deleted['description'] else "-"
     await message.answer(
         f"🗑 **Oxirgi amal bekor qilindi va o'chirildi:**\n\n"
         f"• Turi: {type_name}\n"
         f"• Summa: **{format_number(deleted['amount'])} {CURRENCY}**\n"
-        f"• Kategoriya: {deleted['category'] or 'Ko\\'rsatilmagan'}\n"
-        f"• Izoh: {deleted['description'] or '-'}\n"
+        f"• Kategoriya: {cat_name}\n"
+        f"• Izoh: {desc_text}\n"
         f"• Sana: {deleted['date']}",
         reply_markup=get_main_keyboard(),
         parse_mode="Markdown"
