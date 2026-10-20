@@ -44,6 +44,23 @@ const YASALGAN_CATALOG = [
   { name: "Xardcover", price: 10000 }
 ];
 
+// Montajlar bo'limi uchun maxsus katalog va belgilangan narxlar
+const MONTAJ_CATALOG = [
+  { name: "Twix", price: 10000 },
+  { name: "Twix panarama", price: 10000 },
+  { name: "A4", price: 7000 },
+  { name: "A4 panarama", price: 7000 },
+  { name: "Plastik 2 list", price: 5000 },
+  { name: "Plastik 3 list", price: 7000 },
+  { name: "Plastik 4 list", price: 8000 },
+  { name: "Plastik 5 list", price: 9000 },
+  { name: "Albom", price: 40000 },
+  { name: "Xardcover 3 list", price: 7000 },
+  { name: "Xardcover 4 list", price: 8000 },
+  { name: "Xardcover", price: 10000 },
+  { name: "Palma albom", price: 25000 }
+];
+
 const SECTION_CONFIG = {
   yasalgan: {
     title: "🔨 Yasalgan buyum qo'shish",
@@ -55,10 +72,9 @@ const SECTION_CONFIG = {
   },
   montaj: {
     title: "🔧 Montaj ishi qo'shish",
-    labelAmount: "Ish haqi / Summa (so'mda):",
-    labelCategory: "Montaj turi:",
-    labelDescription: "Ob'yekt / Manzil / Izoh (masalan: Chilonzor 19, 45-kv):",
-    defaultTags: ["Oshxona montaji", "Shkaf yig'ish", "Deraza o'rnatish", "Eshik montaji", "Ob'yekt ishi"],
+    labelAmount: "Jami hisoblangan summa (so'm):",
+    labelCategory: "Montaj turini tanlang:",
+    labelDescription: "",
     colorClass: "text-montaj",
     icon: "🔧"
   },
@@ -394,18 +410,20 @@ function openAddModal(type) {
   tagsContainer.innerHTML = "";
   selectedTag = "";
 
-  if (type === 'yasalgan') {
-    // YASALGAN BUYUM: Soni va avto-hisoblash faol, Izoh olib tashlanadi
+  if (type === 'yasalgan' || type === 'montaj') {
+    // YASALGAN va MONTAJ: Soni va avto-hisoblash faol, Izoh olib tashlanadi
     fieldQty.style.display = "block";
     calcCard.style.display = "flex";
-    fieldDesc.style.display = "none"; // Foydalanuvchi so'raganidek izohni olib tashlaymiz
+    fieldDesc.style.display = "none"; // Izohni olib tashlaymiz
     quickAmountsRow.style.display = "none"; // Summa avtomatik hisoblanadi
 
     currentQuantity = 1;
     document.getElementById("entryQuantity").value = 1;
 
-    // 12 ta mahsulot va narxlari ro'yxati
-    YASALGAN_CATALOG.forEach((item, idx) => {
+    const catalog = (type === 'yasalgan') ? YASALGAN_CATALOG : MONTAJ_CATALOG;
+
+    // Mahsulotlar va narxlari ro'yxati
+    catalog.forEach((item, idx) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tag-pill" + (idx === 0 ? " active" : "");
@@ -422,14 +440,14 @@ function openAddModal(type) {
         btn.classList.add("active");
         selectedTag = item.name;
         currentUnitPrice = item.price;
-        recalculateYasalgan();
+        recalculateQuantityPrice();
       });
       tagsContainer.appendChild(btn);
     });
 
-    recalculateYasalgan();
+    recalculateQuantityPrice();
   } else {
-    // Boshqa bo'limlar (Montaj, Daromad, Xarajat, Avans)
+    // Boshqa bo'limlar (Daromad, Xarajat, Avans)
     fieldQty.style.display = "none";
     calcCard.style.display = "none";
     fieldDesc.style.display = "block";
@@ -454,7 +472,7 @@ function openAddModal(type) {
   }
 
   document.getElementById("addModal").classList.add("show");
-  if (type !== 'yasalgan') {
+  if (type !== 'yasalgan' && type !== 'montaj') {
     setTimeout(() => document.getElementById("entryAmount").focus(), 120);
   }
 }
@@ -466,25 +484,25 @@ function stepQty(delta) {
   q = Math.max(1, q + delta);
   document.getElementById("entryQuantity").value = q;
   currentQuantity = q;
-  recalculateYasalgan();
+  recalculateQuantityPrice();
 }
 
 function setQty(val) {
   haptic('light');
   document.getElementById("entryQuantity").value = val;
   currentQuantity = val;
-  recalculateYasalgan();
+  recalculateQuantityPrice();
 }
 
 function onQtyChange() {
   let val = parseInt(document.getElementById("entryQuantity").value);
   if (isNaN(val) || val < 1) val = 1;
   currentQuantity = val;
-  recalculateYasalgan();
+  recalculateQuantityPrice();
 }
 
-function recalculateYasalgan() {
-  if (activeModalType !== 'yasalgan') return;
+function recalculateQuantityPrice() {
+  if (activeModalType !== 'yasalgan' && activeModalType !== 'montaj') return;
   const total = currentQuantity * currentUnitPrice;
   document.getElementById("calcFormula").textContent = `${currentQuantity} ta × ${currentUnitPrice.toLocaleString('uz-UZ')} so'm`;
   document.getElementById("calcTotal").textContent = `${total.toLocaleString('uz-UZ')} so'm`;
@@ -527,7 +545,7 @@ async function handleFormSubmit(e) {
   const dateVal = document.getElementById("entryDate").value || now.toISOString().split("T")[0];
 
   let desc = "";
-  if (type === 'yasalgan') {
+  if (type === 'yasalgan' || type === 'montaj') {
     desc = `${currentQuantity} dona (${currentUnitPrice.toLocaleString('uz-UZ')} so'm)`;
   } else {
     desc = document.getElementById("entryDescription").value.trim();
