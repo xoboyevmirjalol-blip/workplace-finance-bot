@@ -208,7 +208,7 @@ function switchTab(tabId) {
   // Load specific tab data if needed
   if (tabId === "tab-yasalgan") loadSectionList("yasalgan", "yasalganList", "yasalganPageSub");
   else if (tabId === "tab-montaj") loadSectionList("montaj", "montajList", "montajPageSub");
-  else if (tabId === "tab-income") loadSectionList("income", "incomeList", "incomePageSub");
+  else if (tabId === "tab-income") loadDailyIncome();
   else if (tabId === "tab-expense") loadSectionList("expense", "expenseList", "expensePageSub");
   else if (tabId === "tab-advance") loadSectionList("advance", "advanceList", "advancePageSub");
 }
@@ -218,7 +218,7 @@ async function loadAllData() {
   await loadDashboard();
   if (activeTab === "tab-yasalgan") loadSectionList("yasalgan", "yasalganList", "yasalganPageSub");
   else if (activeTab === "tab-montaj") loadSectionList("montaj", "montajList", "montajPageSub");
-  else if (activeTab === "tab-income") loadSectionList("income", "incomeList", "incomePageSub");
+  else if (activeTab === "tab-income") loadDailyIncome();
   else if (activeTab === "tab-expense") loadSectionList("expense", "expenseList", "expensePageSub");
   else if (activeTab === "tab-advance") loadSectionList("advance", "advanceList", "advancePageSub");
 }
@@ -315,6 +315,110 @@ async function loadSectionList(type, listId, subId) {
     });
   } catch (err) {
     console.error(err);
+  }
+}
+
+function formatUzDate(dateStr) {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const y = parts[0];
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  const mName = MONTH_NAMES[m - 1] || "";
+  return `${d}-${mName.toLowerCase()} ${y}`;
+}
+
+// Load Daily Grouped Income for Daromad Section
+async function loadDailyIncome() {
+  try {
+    const [dailyRes, overviewRes] = await Promise.all([
+      fetch(`/api/daily-income?user_id=${currentUserId}&year=${currentYear}&month=${currentMonth}`),
+      fetch(`/api/overview?user_id=${currentUserId}&year=${currentYear}&month=${currentMonth}`)
+    ]);
+
+    if (overviewRes.ok) {
+      const oData = await overviewRes.json();
+      const elTotal = document.getElementById("incomePageTotal");
+      const elYasalgan = document.getElementById("incSubYasalgan");
+      const elMontaj = document.getElementById("incSubMontaj");
+      const elExtra = document.getElementById("incSubExtra");
+
+      if (elTotal) elTotal.textContent = formatMoney(oData.total_earnings);
+      if (elYasalgan) elYasalgan.textContent = formatMoney(oData.yasalgan.total);
+      if (elMontaj) elMontaj.textContent = formatMoney(oData.montaj.total);
+      if (elExtra) elExtra.textContent = formatMoney(oData.income.total);
+    }
+
+    if (!dailyRes.ok) throw new Error("Kunlik daromad yuklanmadi");
+    const dailyData = await dailyRes.json();
+
+    const feed = document.getElementById("dailyIncomeFeed");
+    if (!feed) return;
+
+    if (!dailyData.days || dailyData.days.length === 0) {
+      feed.innerHTML = '<div class="empty-hint">Ushbu oyda daromadlar kiritilmagan.</div>';
+      return;
+    }
+
+    feed.innerHTML = "";
+    dailyData.days.forEach(day => {
+      const card = document.createElement("div");
+      card.className = "day-card";
+
+      const header = document.createElement("div");
+      header.className = "day-card-header";
+      header.innerHTML = `
+        <div class="day-card-date-wrap">
+          <span class="day-card-calendar-icon">📅</span>
+          <span class="day-card-date">${formatUzDate(day.date)}</span>
+        </div>
+        <div class="day-card-badge">Jami: ${formatMoney(day.day_total)}</div>
+      `;
+      card.appendChild(header);
+
+      const itemsWrap = document.createElement("div");
+      itemsWrap.className = "day-sub-items";
+
+      day.items.forEach(item => {
+        let icon = "💰";
+        let typeBadge = "";
+        if (item.type === "yasalgan") {
+          icon = "🔨";
+          typeBadge = "Yasalgan";
+        } else if (item.type === "montaj") {
+          icon = "🔧";
+          typeBadge = "Montaj";
+        } else {
+          icon = "💵";
+          typeBadge = "Qo'shimcha";
+        }
+
+        const row = document.createElement("div");
+        row.className = "day-sub-row";
+        row.innerHTML = `
+          <div class="day-sub-left">
+            <span class="day-sub-icon">${icon}</span>
+            <div class="day-sub-info">
+              <span class="day-sub-title">${escapeHtml(item.category || typeBadge)}</span>
+              <span class="day-sub-desc">${escapeHtml(item.description || typeBadge)}</span>
+            </div>
+          </div>
+          <div class="day-sub-right">
+            <span class="day-sub-sum">+${formatMoney(item.amount)}</span>
+            <button class="day-sub-del-btn" onclick="deleteEntry(${item.id})" title="O'chirish">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        `;
+        itemsWrap.appendChild(row);
+      });
+
+      card.appendChild(itemsWrap);
+      feed.appendChild(card);
+    });
+  } catch (err) {
+    console.error("loadDailyIncome error:", err);
   }
 }
 

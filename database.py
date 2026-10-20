@@ -258,6 +258,10 @@ async def get_dashboard_overview(user_id: int, year: int, month: int) -> Dict[st
             cat_rows = await cursor.fetchall()
             expense_by_cat = [dict(r) for r in cat_rows]
 
+        # Total earnings calculation (Yasalgan + Montaj + Daromad)
+        total_earnings = yasalgan["total"] + montaj["total"] + income["total"]
+        today_earnings = today_map.get("yasalgan", 0.0) + today_map.get("montaj", 0.0) + today_map.get("income", 0.0)
+
         return {
             "year": year,
             "month": month,
@@ -266,19 +270,68 @@ async def get_dashboard_overview(user_id: int, year: int, month: int) -> Dict[st
             "advance": advance,
             "yasalgan": yasalgan,
             "montaj": montaj,
-            "net_salary": (income["total"] + montaj["total"]) - advance["total"],
-            "net_profit": (income["total"] + montaj["total"]) - expense["total"],
+            "total_earnings": total_earnings,
+            "net_salary": total_earnings - advance["total"],
+            "net_profit": total_earnings - expense["total"],
             "today": {
                 "income": today_map.get("income", 0.0),
                 "expense": today_map.get("expense", 0.0),
                 "advance": today_map.get("advance", 0.0),
                 "yasalgan": today_map.get("yasalgan", 0.0),
                 "montaj": today_map.get("montaj", 0.0),
-                "net": today_map.get("income", 0.0) + today_map.get("montaj", 0.0) - today_map.get("expense", 0.0)
+                "total_earned": today_earnings,
+                "net": today_earnings - today_map.get("expense", 0.0)
             },
             "recent_items": recent_items,
             "expense_by_cat": expense_by_cat
         }
+
+async def get_daily_income_breakdown(user_id: int, year: int, month: int) -> Dict[str, Any]:
+    month_prefix = f"{year:04d}-{month:02d}%"
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, type, amount, category, description, date, created_at
+            FROM transactions
+            WHERE user_id = ? AND type IN ('yasalgan', 'montaj', 'income') AND date LIKE ?
+            ORDER BY date DESC, id DESC
+            """,
+            (user_id, month_prefix)
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+    days_dict = {}
+    total_month_income = 0.0
+    for r in rows:
+        d = r['date']
+        amt = r['amount']
+        total_month_income += amt
+        if d not in days_dict:
+            days_dict[d] = {
+                "date": d,
+                "day_total": 0.0,
+                "yasalgan_total": 0.0,
+                "montaj_total": 0.0,
+                "income_total": 0.0,
+                "items": []
+            }
+        days_dict[d]["day_total"] += amt
+        if r['type'] == 'yasalgan':
+            days_dict[d]["yasalgan_total"] += amt
+        elif r['type'] == 'montaj':
+            days_dict[d]["montaj_total"] += amt
+        else:
+            days_dict[d]["income_total"] += amt
+
+        days_dict[d]["items"].append(dict(r))
+
+    return {
+        "year": year,
+        "month": month,
+        "total_month_income": total_month_income,
+        "days": list(days_dict.values())
+    }
 
 async def get_all_monthly_transactions(user_id: int, year: int, month: int) -> List[Dict[str, Any]]:
     month_prefix = f"{year:04d}-{month:02d}%"

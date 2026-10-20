@@ -195,16 +195,36 @@
       <div class="list-feed" id="montajList"></div>
     </section>
 
-    <!-- TAB 4: DAROMAD -->
+    <!-- TAB 4: DAROMAD (KUNLAR VA OY BO'YICHA TO'LIQ HISOBOT) -->
     <section class="tab-page" id="tab-income">
-      <div class="page-header-card bg-card-income">
-        <div>
-          <h3>💰 Daromadlar</h3>
-          <p id="incomePageSub">Oylik jami: 0 so'm (0 ta)</p>
+      <div class="income-overview-card">
+        <div class="inc-head-label">OYLIK JAMI ISHLAB TOPILGAN DAROMAD</div>
+        <div class="inc-total-sum text-income" id="incomePageTotal">0 so'm</div>
+        <div class="inc-sub-stats">
+          <div class="inc-sub-pill">
+            <span>🔨 Yasalgan:</span>
+            <strong class="text-yasalgan" id="incSubYasalgan">0 so'm</strong>
+          </div>
+          <div class="inc-sub-pill">
+            <span>🔧 Montaj:</span>
+            <strong class="text-montaj" id="incSubMontaj">0 so'm</strong>
+          </div>
+          <div class="inc-sub-pill">
+            <span>💵 Boshqa:</span>
+            <strong class="text-income" id="incSubExtra">0 so'm</strong>
+          </div>
         </div>
-        <button class="add-action-btn bg-income" onclick="openAddModal('income')">+ Qo'shish</button>
       </div>
-      <div class="list-feed" id="incomeList"></div>
+
+      <div class="section-action-bar">
+        <h4>📅 Kunlik hisoblangan daromadlar</h4>
+        <button class="add-action-btn bg-income" onclick="openAddModal('income')">+ Qo'shimcha</button>
+      </div>
+
+      <!-- Kunlar kesimida guruhlangan kunlik daromadlar -->
+      <div class="daily-income-feed" id="dailyIncomeFeed">
+        <div class="empty-hint">Daromadlar mavjud emas.</div>
+      </div>
     </section>
 
     <!-- TAB 5: XARAJAT -->

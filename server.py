@@ -8,6 +8,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from database import (
     get_dashboard_overview,
     get_items_by_type,
+    get_daily_income_breakdown,
     add_transaction,
     delete_transaction_by_id,
     get_all_monthly_transactions
@@ -182,12 +183,21 @@ async def handle_export(request: web.Request):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
+async def handle_daily_income(request: web.Request):
+    user_id = int(request.query.get("user_id", 0))
+    today = date.today()
+    year = int(request.query.get("year", today.year))
+    month = int(request.query.get("month", today.month))
+    data = await get_daily_income_breakdown(user_id, year, month)
+    return web.json_response(data)
+
 def create_web_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/", handle_index)
     app.router.add_static("/static", path=STATIC_DIR, name="static")
     app.router.add_get("/api/overview", handle_overview)
     app.router.add_get("/api/items", handle_items)
+    app.router.add_get("/api/daily-income", handle_daily_income)
     app.router.add_post("/api/entry", handle_add_entry)
     app.router.add_delete("/api/entry/{id}", handle_delete_entry)
     app.router.add_get("/api/export", handle_export)
