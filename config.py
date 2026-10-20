@@ -13,8 +13,13 @@ PORT = int(os.getenv("PORT", 8080))
 
 # Railway automatically sets RAILWAY_PUBLIC_DOMAIN (e.g. app.up.railway.app)
 RAILWAY_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
-if os.getenv("WEBAPP_URL"):
-    WEBAPP_URL = os.getenv("WEBAPP_URL")
+raw_url = os.getenv("WEBAPP_URL", "")
+
+if raw_url:
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        WEBAPP_URL = f"https://{raw_url}"
+    else:
+        WEBAPP_URL = raw_url
 elif RAILWAY_DOMAIN:
     WEBAPP_URL = f"https://{RAILWAY_DOMAIN}"
 else:
