@@ -63,6 +63,102 @@ async def delete_transaction_by_id(user_id: int, trans_id: int) -> bool:
         await db.commit()
         return cursor.rowcount > 0
 
+async def delete_last_transaction(user_id: int) -> Optional[Dict[str, Any]]:
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, type, amount, category, description, date
+            FROM transactions
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            trans = dict(row)
+
+        await db.execute("DELETE FROM transactions WHERE id = ?", (trans['id'],))
+        await db.commit()
+        return trans
+
+async def get_recent_transactions(user_id: int, limit: int = 15) -> List[Dict[str, Any]]:
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, type, amount, category, description, date, created_at
+            FROM transactions
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, limit)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def get_daily_summary(user_id: int, date_str: Optional[str] = None) -> Dict[str, Any]:
+    target_date = date_str or date.today().isoformat()
+    async with aiosqlite.connect(DB_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT 
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
+                SUM(CASE WHEN type = 'advance' THEN amount ELSE 0 END) as total_advance,
+                COUNT(id) as count
+            FROM transactions
+            WHERE user_id = ? AND date = ?
+            """,
+            (user_id, target_date)
+        ) as cursor:
+            row = await cursor.fetchone()
+            total_income = row['total_income'] or 0.0
+            total_expense = row['total_expense'] or 0.0
+            total_advance = row['total_advance'] or 0.0
+            count = row['count'] or 0
+
+        async with db.execute(
+            """
+            SELECT id, type, amount, category, description, created_at
+            FROM transactions
+            WHERE user_id = ? AND date = ?
+            ORDER BY id ASC
+            """,
+            (user_id, target_date)
+        ) as cursor:
+            items = [dict(r) for r in await cursor.fetchall()]
+
+        return {
+            "date": target_date,
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "total_advance": total_advance,
+            "net": total_income - total_expense,
+            "items": items,
+            "count": count
+        }
+
+async def get_monthly_summary(user_id: int, year: int, month: int) -> Dict[str, Any]:
+    overview = await get_dashboard_overview(user_id, year, month)
+    return {
+        "year": year,
+        "month": month,
+        "total_income": overview["income"]["total"],
+        "total_expense": overview["expense"]["total"],
+        "total_advance": overview["advance"]["total"],
+        "net": overview["net_profit"],
+        "net_with_advance": overview["net_salary"],
+        "count": overview["income"]["count"] + overview["expense"]["count"] + overview["advance"]["count"],
+        "expense_by_cat": overview["expense_by_cat"],
+        "daily_breakdown": []
+    }
+
 async def get_items_by_type(user_id: int, trans_type: str, year: int, month: int) -> Dict[str, Any]:
     month_prefix = f"{year:04d}-{month:02d}%"
     async with aiosqlite.connect(DB_NAME) as db:
@@ -170,7 +266,7 @@ async def get_dashboard_overview(user_id: int, year: int, month: int) -> Dict[st
             "advance": advance,
             "yasalgan": yasalgan,
             "montaj": montaj,
-            "net_salary": (income["total"] + montaj["total"]) - advance["total"], # Daromad va montajdan avans ayirilganda qolgan haq
+            "net_salary": (income["total"] + montaj["total"]) - advance["total"],
             "net_profit": (income["total"] + montaj["total"]) - expense["total"],
             "today": {
                 "income": today_map.get("income", 0.0),
