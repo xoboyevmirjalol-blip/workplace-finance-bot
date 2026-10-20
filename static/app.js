@@ -1,4 +1,4 @@
-// Telegram WebApp Integration
+// Telegram WebApp SDK
 const tg = window.Telegram?.WebApp || null;
 
 if (tg) {
@@ -10,8 +10,8 @@ if (tg) {
 }
 
 // User state
-let currentUserId = 123456789; // Default fallback for local testing
-let currentUserName = "Mehmon";
+let currentUserId = 123456789;
+let currentUserName = "Foydalanuvchi";
 
 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
   currentUserId = tg.initDataUnsafe.user.id;
@@ -26,20 +26,63 @@ const MONTH_NAMES = [
 const now = new Date();
 let currentYear = now.getFullYear();
 let currentMonth = now.getMonth() + 1; // 1-indexed
+let activeTab = "tab-dashboard";
 
-const CATEGORIES = {
-  income: ["💼 Kunlik ish haqi", "🎁 Bonus", "⚡️ Qo'shimcha ish", "💵 Boshqa"],
-  expense: ["🍱 Tushlik/Ovqat", "🚖 Yo'l kira", "☕️ Choy-chaqa", "🛠 Ish uchun", "📱 Aloqa", "📦 Boshqa"],
-  advance: ["🤝 Naqd avans", "💳 Plastik avans", "🏢 Rahbariyatdan"]
+const SECTION_CONFIG = {
+  yasalgan: {
+    title: "🔨 Yasalgan buyum qo'shish",
+    labelAmount: "Narxi / Summasi (so'mda):",
+    labelCategory: "Buyum turi / Nomi:",
+    labelDescription: "Soni & Izoh (masalan: 1 komplekt, Murod aka uchun):",
+    defaultTags: ["Oshxona mebeli", "Shkaf", "Stol-stul", "Eshik", "Deraza", "Boshqa buyum"],
+    colorClass: "text-yasalgan",
+    icon: "🔨"
+  },
+  montaj: {
+    title: "🔧 Montaj ishi qo'shish",
+    labelAmount: "Ish haqi / Summa (so'mda):",
+    labelCategory: "Montaj turi:",
+    labelDescription: "Ob'yekt / Manzil / Izoh (masalan: Chilonzor 19, 45-kv):",
+    defaultTags: ["Oshxona montaji", "Shkaf yig'ish", "Deraza o'rnatish", "Eshik montaji", "Ob'yekt ishi"],
+    colorClass: "text-montaj",
+    icon: "🔧"
+  },
+  income: {
+    title: "💰 Daromad qo'shish",
+    labelAmount: "Daromad summasi (so'mda):",
+    labelCategory: "Toifa:",
+    labelDescription: "Qo'shimcha izoh:",
+    defaultTags: ["Kunlik ish haqi", "Bonus", "Qo'shimcha tushum", "Boshqa"],
+    colorClass: "text-income",
+    icon: "💰"
+  },
+  expense: {
+    title: "💸 Xarajat qo'shish",
+    labelAmount: "Xarajat summasi (so'mda):",
+    labelCategory: "Xarajat toifasi:",
+    labelDescription: "Izoh (masalan: Tushlik osh, yo'l kira):",
+    defaultTags: ["Materiallar", "Asbob-anjom", "Tushlik", "Yo'l kira", "Choy-chaqa", "Boshqa"],
+    colorClass: "text-expense",
+    icon: "💸"
+  },
+  advance: {
+    title: "🤝 Avans qo'shish",
+    labelAmount: "Olingan avans summasi (so'mda):",
+    labelCategory: "Qayerdan olindi:",
+    labelDescription: "Izoh:",
+    defaultTags: ["Naqd kassa", "Plastik karta", "Rahbariyatdan"],
+    colorClass: "text-advance",
+    icon: "🤝"
+  }
 };
 
-let selectedCategory = "";
+let activeModalType = "income";
+let selectedTag = "";
 
 function formatMoney(amount) {
   return Math.round(amount || 0).toLocaleString('uz-UZ').replace(/,/g, ' ') + " so'm";
 }
 
-// Haptic feedback helper
 function haptic(type = 'light') {
   if (tg && tg.HapticFeedback) {
     if (type === 'success' || type === 'error') {
@@ -50,45 +93,26 @@ function haptic(type = 'light') {
   }
 }
 
-// Init UI
+// App Initialization
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("userName").textContent = currentUserName;
   document.getElementById("userAvatar").textContent = currentUserName.charAt(0).toUpperCase();
+  document.getElementById("currentDateText").textContent = now.toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
+  document.getElementById("entryDate").value = now.toISOString().split("T")[0];
 
-  const formattedDate = now.toLocaleDateString("uz-UZ", { day: "numeric", month: "long" });
-  document.getElementById("currentDateBadge").textContent = formattedDate;
-
+  setupMonthNav();
   setupTabs();
-  setupMonthSelector();
-  setupExportSelect();
-  loadTodayData();
-  loadMonthlyData();
+  setupExcelSelect();
+  loadAllData();
 
-  document.getElementById("refreshBtn").addEventListener("click", () => {
+  document.getElementById("reloadBtn").addEventListener("click", () => {
     haptic('light');
-    loadTodayData();
-    loadMonthlyData();
+    loadAllData();
   });
 });
 
-// Setup Tabs
-function setupTabs() {
-  const tabs = document.querySelectorAll(".tab-btn");
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      haptic('light');
-      tabs.forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-
-      const targetId = tab.dataset.tab;
-      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-      document.getElementById(targetId).classList.add("active");
-    });
-  });
-}
-
-// Setup Month Selector
-function setupMonthSelector() {
+// Month Nav
+function setupMonthNav() {
   updateMonthHeader();
 
   document.getElementById("prevMonthBtn").addEventListener("click", () => {
@@ -99,7 +123,7 @@ function setupMonthSelector() {
       currentYear -= 1;
     }
     updateMonthHeader();
-    loadMonthlyData();
+    loadAllData();
   });
 
   document.getElementById("nextMonthBtn").addEventListener("click", () => {
@@ -110,195 +134,279 @@ function setupMonthSelector() {
       currentYear += 1;
     }
     updateMonthHeader();
-    loadMonthlyData();
+    loadAllData();
   });
 }
 
 function updateMonthHeader() {
-  document.getElementById("selectedMonthTitle").textContent = `${MONTH_NAMES[currentMonth - 1]} ${currentYear}`;
+  document.getElementById("monthDisplay").textContent = `${MONTH_NAMES[currentMonth - 1]} ${currentYear}`;
 }
 
-// Load Today's Data
-async function loadTodayData() {
-  try {
-    const res = await fetch(`/api/summary?user_id=${currentUserId}`);
-    if (!res.ok) throw new Error("Yuklab bo'lmadi");
-    const data = await res.json();
-
-    document.getElementById("todayNet").textContent = formatMoney(data.net);
-    document.getElementById("todayIncome").textContent = formatMoney(data.total_income);
-    document.getElementById("todayExpense").textContent = formatMoney(data.total_expense);
-    document.getElementById("todayAdvance").textContent = formatMoney(data.total_advance);
-    document.getElementById("todayTxCount").textContent = `${data.count || 0} ta`;
-
-    renderTransactions(data.items || []);
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Render Transactions
-function renderTransactions(items) {
-  const list = document.getElementById("todayTxList");
-  if (!items || items.length === 0) {
-    list.innerHTML = '<div class="empty-state">Bugun hali hech qanday amal kiritilmadi.</div>';
-    return;
-  }
-
-  list.innerHTML = "";
-  items.slice().reverse().forEach(item => {
-    const isIncome = item.type === 'income';
-    const isExpense = item.type === 'expense';
-    const icon = isIncome ? '💰' : (isExpense ? '💸' : '🤝');
-    const typeClass = item.type;
-    const prefix = isIncome ? '+' : (isExpense ? '-' : '🤝');
-
-    const div = document.createElement("div");
-    div.className = "tx-item";
-    div.innerHTML = `
-      <div class="tx-left">
-        <div class="tx-icon-box ${typeClass}">${icon}</div>
-        <div class="tx-info">
-          <h4>${escapeHtml(item.category || (isIncome ? 'Daromad' : 'Xarajat'))}</h4>
-          <p>${escapeHtml(item.description || '-')}</p>
-        </div>
-      </div>
-      <div class="tx-right">
-        <span class="tx-amount ${typeClass}">${prefix} ${formatMoney(item.amount)}</span>
-        <button class="delete-btn" onclick="deleteTx(${item.id})" title="O'chirish">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      </div>
-    `;
-    list.appendChild(div);
+// Tabs setup
+function setupTabs() {
+  const tabButtons = document.querySelectorAll(".tab-item");
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.tab;
+      switchTab(target);
+    });
   });
 }
 
-// Delete Transaction
-async function deleteTx(id) {
-  if (!confirm("Haqiqatan ham ushbu amalni o'chirmoqchimisiz?")) return;
-  haptic('error');
-  try {
-    const res = await fetch(`/api/transaction/${id}?user_id=${currentUserId}`, { method: "DELETE" });
-    if (res.ok) {
-      loadTodayData();
-      loadMonthlyData();
+function switchTab(tabId) {
+  haptic('light');
+  activeTab = tabId;
+
+  // Buttons
+  document.querySelectorAll(".tab-item").forEach(b => {
+    if (b.dataset.tab === tabId) {
+      b.classList.add("active");
+      b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    } else {
+      b.classList.remove("active");
     }
-  } catch (err) {
-    console.error(err);
-  }
+  });
+
+  // Pages
+  document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
+  const activePage = document.getElementById(tabId);
+  if (activePage) activePage.classList.add("active");
+
+  // Load specific tab data if needed
+  if (tabId === "tab-yasalgan") loadSectionList("yasalgan", "yasalganList", "yasalganPageSub");
+  else if (tabId === "tab-montaj") loadSectionList("montaj", "montajList", "montajPageSub");
+  else if (tabId === "tab-income") loadSectionList("income", "incomeList", "incomePageSub");
+  else if (tabId === "tab-expense") loadSectionList("expense", "expenseList", "expensePageSub");
+  else if (tabId === "tab-advance") loadSectionList("advance", "advanceList", "advancePageSub");
 }
 
-// Load Monthly Data
-async function loadMonthlyData() {
+// Load All Data
+async function loadAllData() {
+  await loadDashboard();
+  if (activeTab === "tab-yasalgan") loadSectionList("yasalgan", "yasalganList", "yasalganPageSub");
+  else if (activeTab === "tab-montaj") loadSectionList("montaj", "montajList", "montajPageSub");
+  else if (activeTab === "tab-income") loadSectionList("income", "incomeList", "incomePageSub");
+  else if (activeTab === "tab-expense") loadSectionList("expense", "expenseList", "expensePageSub");
+  else if (activeTab === "tab-advance") loadSectionList("advance", "advanceList", "advancePageSub");
+}
+
+// Load Dashboard Overview
+async function loadDashboard() {
   try {
-    const res = await fetch(`/api/monthly?user_id=${currentUserId}&year=${currentYear}&month=${currentMonth}`);
-    if (!res.ok) throw new Error("Yuklab bo'lmadi");
+    const res = await fetch(`/api/overview?user_id=${currentUserId}&year=${currentYear}&month=${currentMonth}`);
+    if (!res.ok) throw new Error("Dashboard yuklanmadi");
     const data = await res.json();
 
-    document.getElementById("monthNetSalary").textContent = formatMoney(data.net_with_advance);
-    document.getElementById("monthTotalIncome").textContent = formatMoney(data.total_income);
-    document.getElementById("monthTotalExpense").textContent = formatMoney(data.total_expense);
-    document.getElementById("monthTotalAdvance").textContent = formatMoney(data.total_advance);
-    document.getElementById("monthNetProfit").textContent = formatMoney(data.net);
+    // Badges
+    document.getElementById("badgeYasalgan").textContent = data.yasalgan.count || 0;
+    document.getElementById("badgeMontaj").textContent = data.montaj.count || 0;
+    document.getElementById("badgeIncome").textContent = data.income.count || 0;
+    document.getElementById("badgeExpense").textContent = data.expense.count || 0;
+    document.getElementById("badgeAdvance").textContent = data.advance.count || 0;
 
-    // Categories
-    const catList = document.getElementById("categoriesList");
-    if (!data.expense_by_cat || data.expense_by_cat.length === 0) {
-      catList.innerHTML = '<div class="empty-state">Bu oyda xarajatlar mavjud emas.</div>';
-    } else {
-      catList.innerHTML = "";
-      const totalExp = data.total_expense || 1;
-      data.expense_by_cat.forEach(cat => {
-        const pct = Math.round((cat.cat_sum / totalExp) * 100);
-        const row = document.createElement("div");
-        row.className = "category-row";
-        row.innerHTML = `
-          <div class="cat-top">
-            <strong>${escapeHtml(cat.category || 'Boshqa')}</strong>
-            <span>${formatMoney(cat.cat_sum)} (${pct}%)</span>
-          </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" style="width: ${pct}%"></div>
-          </div>
-        `;
-        catList.appendChild(row);
-      });
+    // Dashboard values
+    document.getElementById("dashNetSalary").textContent = formatMoney(data.net_salary);
+    document.getElementById("dashTotalYasalgan").textContent = formatMoney(data.yasalgan.total);
+    document.getElementById("dashCountYasalgan").textContent = `${data.yasalgan.count} ta buyum`;
+    
+    document.getElementById("dashTotalMontaj").textContent = formatMoney(data.montaj.total);
+    document.getElementById("dashCountMontaj").textContent = `${data.montaj.count} ta ob'yekt`;
+
+    document.getElementById("dashTotalIncome").textContent = formatMoney(data.income.total);
+    document.getElementById("dashCountIncome").textContent = `${data.income.count} ta tushum`;
+
+    document.getElementById("dashTotalExpense").textContent = formatMoney(data.expense.total);
+    document.getElementById("dashCountExpense").textContent = `${data.expense.count} ta sarf`;
+
+    document.getElementById("dashTotalAdvance").textContent = formatMoney(data.advance.total);
+    document.getElementById("dashCountAdvance").textContent = `${data.advance.count} ta avans`;
+
+    document.getElementById("dashNetProfit").textContent = formatMoney(data.net_profit);
+
+    // Monthly Analysis Page Values
+    document.getElementById("mNetSalary").textContent = formatMoney(data.net_salary);
+    document.getElementById("mTotalYasalgan").textContent = formatMoney(data.yasalgan.total);
+    document.getElementById("mTotalMontaj").textContent = formatMoney(data.montaj.total);
+    document.getElementById("mTotalIncome").textContent = formatMoney(data.income.total);
+    document.getElementById("mTotalExpense").textContent = formatMoney(data.expense.total);
+    document.getElementById("mTotalAdvance").textContent = formatMoney(data.advance.total);
+    document.getElementById("mNetProfit").textContent = formatMoney(data.net_profit);
+
+    // Expense Categories Breakdown
+    renderExpenseCategories(data.expense_by_cat || [], data.expense.total || 0);
+
+    // Recent items feed
+    renderRecentFeed(data.recent_items || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// Render Recent Feed on Dashboard
+function renderRecentFeed(items) {
+  const container = document.getElementById("dashRecentList");
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="empty-hint">Hozircha amallar kiritilmagan.</div>';
+    return;
+  }
+
+  container.innerHTML = "";
+  items.slice(0, 10).forEach(item => {
+    container.appendChild(createItemElement(item));
+  });
+}
+
+// Load Section List (Yasalgan, Montaj, etc.)
+async function loadSectionList(type, listId, subId) {
+  try {
+    const res = await fetch(`/api/items?user_id=${currentUserId}&type=${type}&year=${currentYear}&month=${currentMonth}`);
+    if (!res.ok) throw new Error("Yuklanmadi");
+    const data = await res.json();
+
+    const subElem = document.getElementById(subId);
+    if (subElem) {
+      subElem.textContent = `Oylik jami: ${formatMoney(data.total)} (${data.count} ta)`;
     }
 
-    // Daily breakdown
-    const dailyList = document.getElementById("dailyBreakdownList");
-    if (!data.daily_breakdown || data.daily_breakdown.length === 0) {
-      dailyList.innerHTML = '<div class="empty-state">Kunlik amallar yo\\'q.</div>';
-    } else {
-      dailyList.innerHTML = "";
-      data.daily_breakdown.slice(-7).reverse().forEach(day => {
-        const item = document.createElement("div");
-        item.className = "tx-item";
-        item.innerHTML = `
-          <div class="tx-info">
-            <h4>🗓 ${day.date}</h4>
-            <p>Daromad: +${formatMoney(day.day_income)} | Avans: ${formatMoney(day.day_advance)}</p>
-          </div>
-          <div class="tx-amount expense">-${formatMoney(day.day_expense)}</div>
-        `;
-        dailyList.appendChild(item);
-      });
+    const listElem = document.getElementById(listId);
+    if (!listElem) return;
+
+    if (!data.items || data.items.length === 0) {
+      listElem.innerHTML = '<div class="empty-hint">Ushbu oyda hech narsa kiritilmagan.</div>';
+      return;
+    }
+
+    listElem.innerHTML = "";
+    data.items.forEach(item => {
+      listElem.appendChild(createItemElement(item));
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// Create Item Element for lists
+function createItemElement(item) {
+  const cfg = SECTION_CONFIG[item.type] || SECTION_CONFIG.income;
+  const isMinus = item.type === 'expense';
+  const prefix = isMinus ? '-' : '+';
+  const sumColorClass = cfg.colorClass;
+
+  const div = document.createElement("div");
+  div.className = "feed-item";
+  div.innerHTML = `
+    <div class="item-left">
+      <div class="item-icon">${cfg.icon}</div>
+      <div class="item-texts">
+        <h4>${escapeHtml(item.category || cfg.title)}</h4>
+        <p>${escapeHtml(item.description || '-')} &bull; <small>${item.date}</small></p>
+      </div>
+    </div>
+    <div class="item-right">
+      <span class="item-sum ${sumColorClass}">${prefix}${formatMoney(item.amount)}</span>
+      <button class="del-btn" onclick="deleteEntry(${item.id})" title="O'chirish">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  `;
+  return div;
+}
+
+// Delete Entry
+async function deleteEntry(id) {
+  if (!confirm("Ushbu yozuvni o'chirmoqchimisiz?")) return;
+  haptic('error');
+  try {
+    const res = await fetch(`/api/entry/${id}?user_id=${currentUserId}`, { method: "DELETE" });
+    if (res.ok) {
+      loadAllData();
     }
   } catch (err) {
     console.error(err);
   }
 }
 
-// Modal handling
+// Render Expense Categories
+function renderExpenseCategories(categories, totalExp) {
+  const container = document.getElementById("mExpenseCategories");
+  if (!categories || categories.length === 0) {
+    container.innerHTML = '<div class="empty-hint">Xarajatlar mavjud emas.</div>';
+    return;
+  }
+
+  container.innerHTML = "";
+  const total = totalExp || 1;
+  categories.forEach(cat => {
+    const pct = Math.round((cat.cat_sum / total) * 100);
+    const row = document.createElement("div");
+    row.className = "cat-bar-item";
+    row.innerHTML = `
+      <div class="cat-bar-head">
+        <strong>${escapeHtml(cat.category || 'Boshqa')}</strong>
+        <span>${formatMoney(cat.cat_sum)} (${pct}%)</span>
+      </div>
+      <div class="cat-bar-track">
+        <div class="cat-bar-progress" style="width: ${pct}%"></div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// Open Modal
 function openAddModal(type) {
   haptic('medium');
-  document.getElementById("txType").value = type;
-  document.getElementById("txAmount").value = "";
-  document.getElementById("txDesc").value = "";
-  document.getElementById("customCategory").value = "";
+  activeModalType = type;
+  const cfg = SECTION_CONFIG[type] || SECTION_CONFIG.income;
 
-  const title = type === 'income' ? '💰 Daromad qo\'shish' : (type === 'expense' ? '💸 Xarajat qo\'shish' : '🤝 Avans qo\'shish');
-  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("entryType").value = type;
+  document.getElementById("modalHeading").textContent = cfg.title;
+  document.getElementById("labelAmount").textContent = cfg.labelAmount;
+  document.getElementById("labelCategory").textContent = cfg.labelCategory;
+  document.getElementById("labelDescription").textContent = cfg.labelDescription;
 
-  // Render Category Tags
+  document.getElementById("entryAmount").value = "";
+  document.getElementById("customCatInput").value = "";
+  document.getElementById("entryDescription").value = "";
+  document.getElementById("entryDate").value = now.toISOString().split("T")[0];
+
+  // Category tags
   const tagsContainer = document.getElementById("categoryTags");
   tagsContainer.innerHTML = "";
-  selectedCategory = "";
+  selectedTag = "";
 
-  const list = CATEGORIES[type] || [];
-  list.forEach((cat, idx) => {
+  (cfg.defaultTags || []).forEach((tag, idx) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "tag-btn" + (idx === 0 ? " active" : "");
-    btn.textContent = cat;
-    if (idx === 0) selectedCategory = cat;
+    btn.className = "tag-pill" + (idx === 0 ? " active" : "");
+    btn.textContent = tag;
+    if (idx === 0) selectedTag = tag;
 
     btn.addEventListener("click", () => {
       haptic('light');
-      document.querySelectorAll(".tag-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tag-pill").forEach(p => p.classList.remove("active"));
       btn.classList.add("active");
-      selectedCategory = cat;
+      selectedTag = tag;
     });
     tagsContainer.appendChild(btn);
   });
 
-  document.getElementById("addModal").classList.add("open");
-  setTimeout(() => document.getElementById("txAmount").focus(), 100);
+  document.getElementById("addModal").classList.add("show");
+  setTimeout(() => document.getElementById("entryAmount").focus(), 120);
 }
 
 function closeModal() {
-  document.getElementById("addModal").classList.remove("open");
+  document.getElementById("addModal").classList.remove("show");
 }
 
-function setQuickAmount(addVal) {
+function addAmountVal(val) {
   haptic('light');
-  const input = document.getElementById("txAmount");
-  let current = parseAmount(input.value) || 0;
-  input.value = (current + addVal).toLocaleString('uz-UZ').replace(/,/g, ' ');
+  const input = document.getElementById("entryAmount");
+  let current = parseNumber(input.value) || 0;
+  input.value = (current + val).toLocaleString('uz-UZ').replace(/,/g, ' ');
 }
 
-function parseAmount(text) {
+function parseNumber(text) {
   if (!text) return 0;
   let cleaned = text.toString().toLowerCase().replace(/\s/g, '').replace(/,/g, '.');
   let mult = 1;
@@ -313,24 +421,26 @@ function parseAmount(text) {
   return isNaN(val) ? 0 : val * mult;
 }
 
+// Form Submit
 async function handleFormSubmit(e) {
   e.preventDefault();
-  const type = document.getElementById("txType").value;
-  const amount = parseAmount(document.getElementById("txAmount").value);
-  const customCat = document.getElementById("customCategory").value.trim();
-  const category = customCat || selectedCategory || "Umumiy";
-  const desc = document.getElementById("txDesc").value.trim();
+  const type = document.getElementById("entryType").value;
+  const amount = parseNumber(document.getElementById("entryAmount").value);
+  const customCat = document.getElementById("customCatInput").value.trim();
+  const category = customCat || selectedTag || "Umumiy";
+  const desc = document.getElementById("entryDescription").value.trim();
+  const dateVal = document.getElementById("entryDate").value || now.toISOString().split("T")[0];
 
   if (!amount || amount <= 0) {
     alert("Iltimos, to'g'ri summa kiriting!");
     return;
   }
 
-  const submitBtn = document.getElementById("submitBtn");
-  submitBtn.disabled = true;
+  const btn = document.getElementById("saveSubmitBtn");
+  btn.disabled = true;
 
   try {
-    const res = await fetch("/api/transaction", {
+    const res = await fetch("/api/entry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -338,15 +448,18 @@ async function handleFormSubmit(e) {
         type: type,
         amount: amount,
         category: category,
-        description: desc
+        description: desc,
+        date: dateVal
       })
     });
 
     if (res.ok) {
       haptic('success');
       closeModal();
-      loadTodayData();
-      loadMonthlyData();
+      loadAllData();
+      if (activeTab === "tab-dashboard") {
+        // switch or refresh
+      }
     } else {
       alert("Xatolik yuz berdi.");
     }
@@ -354,13 +467,13 @@ async function handleFormSubmit(e) {
     console.error(err);
     alert("Server bilan aloqa uzildi.");
   } finally {
-    submitBtn.disabled = false;
+    btn.disabled = false;
   }
 }
 
-// Setup Export Select & Download
-function setupExportSelect() {
-  const select = document.getElementById("exportMonthSelect");
+// Excel Select Setup
+function setupExcelSelect() {
+  const select = document.getElementById("excelMonthSelect");
   select.innerHTML = "";
   for (let offset = 0; offset < 6; offset++) {
     let m = currentMonth - offset;

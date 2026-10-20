@@ -1,8 +1,7 @@
 from aiogram import Router, F, Bot
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, MenuButtonWebApp, WebAppInfo
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, MenuButtonWebApp, WebAppInfo, ReplyKeyboardRemove
 from aiogram.filters import CommandStart, Command
 from database import register_user
-from keyboards import get_main_keyboard
 import config
 
 router = Router()
@@ -19,15 +18,10 @@ def get_webapp_inline_keyboard() -> InlineKeyboardMarkup | None:
         ])
     return None
 
-HELP_TEXT = (
-    "💼 **Ishxona Hisob-Kitob Boti**ga xush kelibsiz!\n\n"
-    "Bu bot ishxonangizdagi daromad, xarajat va avanslaringizni aniq hisoblab boradi:\n"
-    "• 💰 **Kunlik daromadlar** (kunlik ish haqi, tushum, bonuslar)\n"
-    "• 💸 **Kunlik xarajatlar** (tushlik, yo'l kira, choy-chaqa)\n"
-    "• 🤝 **Ishxonadan olingan avanslar**\n"
-    "• 📊 **1 Oylik statistika & yakuniy hisob-kitob**\n"
-    "• 📥 **Excel (.xlsx) formatda yuklab olish**\n\n"
-    "Pastdagi menyu tugmalari yoki ilova orqali hisob-kitobingizni boshlashingiz mumkin:"
+WELCOME_TEXT = (
+    "💼 **Ishxona Hisob-Kitob Ilovasi**ga xush kelibsiz!\n\n"
+    "Barcha hisob-kitoblaringiz (🔨 **Yasalgan buyumlar**, 🔧 **Montajlar**, 💰 **Daromad**, 💸 **Xarajat** va 🤝 **Avanslar**) qulay Mini App ilovasi orqali yuritiladi.\n\n"
+    "👇 **Ilovani ochish uchun pastdagi tugmani bosing:**"
 )
 
 @router.message(CommandStart())
@@ -49,33 +43,25 @@ async def cmd_start(message: Message, bot: Bot):
             pass
 
     webapp_kb = get_webapp_inline_keyboard()
-    try:
-        if webapp_kb:
-            await message.answer(
-                f"Assalomu alaykum, {user.first_name or 'qadrdon'}!\n\n" + HELP_TEXT,
-                reply_markup=webapp_kb,
-                parse_mode="Markdown"
-            )
-            await message.answer("Yoki pastdagi tugmalardan foydalaning:", reply_markup=get_main_keyboard())
-        else:
-            await message.answer(
-                f"Assalomu alaykum, {user.first_name or 'qadrdon'}!\n\n" + HELP_TEXT,
-                reply_markup=get_main_keyboard(),
-                parse_mode="Markdown"
-            )
-    except Exception as e:
-        # Har qanday holatda ham oddiy xabar yuborish
+    # Pastdagi barcha ortiqcha tugmalarni olib tashlaymiz (ReplyKeyboardRemove)
+    if webapp_kb:
         await message.answer(
-            f"Assalomu alaykum, {user.first_name or 'qadrdon'}!\n\n" + HELP_TEXT,
-            reply_markup=get_main_keyboard()
+            WELCOME_TEXT,
+            reply_markup=webapp_kb,
+            parse_mode="Markdown"
+        )
+    else:
+        await message.answer(
+            WELCOME_TEXT,
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode="Markdown"
         )
 
 @router.message(Command("help"))
-@router.message(F.text == "ℹ️ Qo'llanma / Yordam")
 async def cmd_help(message: Message):
     webapp_kb = get_webapp_inline_keyboard()
-    if webapp_kb:
-        await message.answer(HELP_TEXT, reply_markup=webapp_kb, parse_mode="Markdown")
-    else:
-        await message.answer(HELP_TEXT, reply_markup=get_main_keyboard(), parse_mode="Markdown")
-
+    await message.answer(
+        WELCOME_TEXT,
+        reply_markup=webapp_kb or ReplyKeyboardRemove(),
+        parse_mode="Markdown"
+    )
