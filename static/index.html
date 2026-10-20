@@ -299,11 +299,42 @@
       <form id="entryForm" onsubmit="handleFormSubmit(event)">
         <input type="hidden" id="entryType" value="income">
 
+        <!-- Toifa / Buyum / Nomi (Yasalgan uchun birinchi turadi) -->
+        <div class="form-field" id="fieldCategory">
+          <label id="labelCategory">Kategoriya / Nomi:</label>
+          <div class="tags-container" id="categoryTags"></div>
+          <input type="text" id="customCatInput" placeholder="Yoki o'zingiz yozing...">
+        </div>
+
+        <!-- Soni maydoni (Yasalgan uchun maxsus avto-hisoblash) -->
+        <div class="form-field" id="fieldQuantity" style="display: none;">
+          <label>Soni (dona):</label>
+          <div class="stepper-wrap">
+            <button type="button" class="step-btn" onclick="stepQty(-1)">−</button>
+            <input type="number" id="entryQuantity" value="1" min="1" oninput="onQtyChange()">
+            <button type="button" class="step-btn" onclick="stepQty(1)">+</button>
+          </div>
+          <div class="quick-qty-tags">
+            <button type="button" onclick="setQty(1)">1</button>
+            <button type="button" onclick="setQty(5)">5</button>
+            <button type="button" onclick="setQty(10)">10</button>
+            <button type="button" onclick="setQty(20)">20</button>
+            <button type="button" onclick="setQty(50)">50</button>
+            <button type="button" onclick="setQty(100)">100</button>
+          </div>
+        </div>
+
+        <!-- Avtomatik hisoblangan formula kartasi -->
+        <div class="calc-preview-card" id="calcPreviewCard" style="display: none;">
+          <span class="calc-formula" id="calcFormula">1 ta × 10 000 so'm</span>
+          <strong class="calc-total" id="calcTotal">10 000 so'm</strong>
+        </div>
+
         <!-- Summa -->
-        <div class="form-field">
+        <div class="form-field" id="fieldAmount">
           <label id="labelAmount">Summasi (so'mda):</label>
           <input type="text" id="entryAmount" placeholder="Masalan: 150 000 yoki 150k" required autofocus>
-          <div class="quick-amounts">
+          <div class="quick-amounts" id="quickAmountsRow">
             <button type="button" onclick="addAmountVal(10000)">+10k</button>
             <button type="button" onclick="addAmountVal(50000)">+50k</button>
             <button type="button" onclick="addAmountVal(100000)">+100k</button>
@@ -312,21 +343,14 @@
           </div>
         </div>
 
-        <!-- Toifa / Buyum / Nomi -->
-        <div class="form-field">
-          <label id="labelCategory">Kategoriya / Nomi:</label>
-          <div class="tags-container" id="categoryTags"></div>
-          <input type="text" id="customCatInput" placeholder="Yoki o'zingiz yozing...">
-        </div>
-
         <!-- Izoh / Tafsilot -->
-        <div class="form-field">
+        <div class="form-field" id="fieldDescription">
           <label id="labelDescription">Izoh / Tafsilot (ixtiyoriy):</label>
           <input type="text" id="entryDescription" placeholder="Qo'shimcha izoh...">
         </div>
 
         <!-- Sana tanlash -->
-        <div class="form-field">
+        <div class="form-field" id="fieldDate">
           <label>Sana:</label>
           <input type="date" id="entryDate">
         </div>
