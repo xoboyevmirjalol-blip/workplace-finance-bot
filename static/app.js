@@ -233,7 +233,8 @@ async function loadDashboard() {
     // Badges
     document.getElementById("badgeYasalgan").textContent = data.yasalgan.count || 0;
     document.getElementById("badgeMontaj").textContent = data.montaj.count || 0;
-    document.getElementById("badgeIncome").textContent = data.income.count || 0;
+    const totalIncomeCount = (data.yasalgan.count || 0) + (data.montaj.count || 0) + (data.income.count || 0);
+    document.getElementById("badgeIncome").textContent = totalIncomeCount;
     document.getElementById("badgeExpense").textContent = data.expense.count || 0;
     document.getElementById("badgeAdvance").textContent = data.advance.count || 0;
 
@@ -322,11 +323,8 @@ function formatUzDate(dateStr) {
   if (!dateStr) return "";
   const parts = dateStr.split("-");
   if (parts.length !== 3) return dateStr;
-  const y = parts[0];
-  const m = parseInt(parts[1], 10);
-  const d = parseInt(parts[2], 10);
-  const mName = MONTH_NAMES[m - 1] || "";
-  return `${d}-${mName.toLowerCase()} ${y}`;
+  const [y, m, d] = parts;
+  return `${d}.${m}.${y} kuni`;
 }
 
 // Load Daily Grouped Income for Daromad Section
@@ -357,7 +355,14 @@ async function loadDailyIncome() {
     if (!feed) return;
 
     if (!dailyData.days || dailyData.days.length === 0) {
-      feed.innerHTML = '<div class="empty-hint">Ushbu oyda daromadlar kiritilmagan.</div>';
+      feed.innerHTML = `
+        <div class="empty-day-box">
+          <div class="empty-day-icon">📅</div>
+          <h4>Hozircha daromadlar kiritilmagan</h4>
+          <p>Yuqoridagi <b>+ 🔨 Yasalgan</b> yoki <b>+ 🔧 Montaj</b> tugmasi orqali ish qo'shganingizda, bu yerda darhol kunlik jamisi chiqadi:</p>
+          <div class="empty-sample-pill">Masalan: <b>20.10.2026 kuni — 300 000 so'm daromad</b></div>
+        </div>
+      `;
       return;
     }
 
@@ -373,7 +378,7 @@ async function loadDailyIncome() {
           <span class="day-card-calendar-icon">📅</span>
           <span class="day-card-date">${formatUzDate(day.date)}</span>
         </div>
-        <div class="day-card-badge">Jami: ${formatMoney(day.day_total)}</div>
+        <div class="day-card-badge">${formatMoney(day.day_total)} daromad</div>
       `;
       card.appendChild(header);
 

@@ -218,12 +218,21 @@
 
       <div class="section-action-bar">
         <h4>📅 Kunlik hisoblangan daromadlar</h4>
-        <button class="add-action-btn bg-income" onclick="openAddModal('income')">+ Qo'shimcha</button>
+        <div class="inc-add-btns">
+          <button class="add-mini-btn bg-yasalgan" onclick="openAddModal('yasalgan')">+ 🔨 Yasalgan</button>
+          <button class="add-mini-btn bg-montaj" onclick="openAddModal('montaj')">+ 🔧 Montaj</button>
+          <button class="add-mini-btn bg-income" onclick="openAddModal('income')">+ 💰 Boshqa</button>
+        </div>
       </div>
 
       <!-- Kunlar kesimida guruhlangan kunlik daromadlar -->
       <div class="daily-income-feed" id="dailyIncomeFeed">
-        <div class="empty-hint">Daromadlar mavjud emas.</div>
+        <div class="empty-day-box">
+          <div class="empty-day-icon">📅</div>
+          <h4>Hozircha daromadlar kiritilmagan</h4>
+          <p>Yuqoridagi <b>+ 🔨 Yasalgan</b> yoki <b>+ 🔧 Montaj</b> tugmasi orqali ish qo'shganingizda, bu yerda darhol kunlik jamisi chiqadi:</p>
+          <div class="empty-sample-pill">Masalan: <b>20.10.2026 kuni — 300 000 so'm daromad</b></div>
+        </div>
       </div>
     </section>
 
